@@ -1,26 +1,103 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-bg-main: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #f7f7f5;
+  --color-bg-sidebar: #fbfbfa;
+  --color-border: #eaeaec;
+  
+  --color-text-primary: #37352f;
+  --color-text-secondary: #5a5a5a;
+  --color-text-muted: #9b9a97;
+  
+  --color-accent: #2383e2;
+  --color-accent-hover: #1e70c1;
+  --color-accent-muted: rgba(35, 131, 226, 0.1);
+  
+  --color-success: #0f7b6c;
+  --color-success-bg: rgba(15, 123, 108, 0.1);
+  --color-warning: #d9730d;
+  --color-warning-bg: rgba(217, 115, 13, 0.1);
+  --color-danger: #e03e3e;
+  --color-danger-bg: rgba(224, 62, 62, 0.1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --color-bg-main: #191919;
+  --color-bg-card: #202020;
+  --color-bg-card-hover: #2c2c2c;
+  --color-bg-sidebar: #202020;
+  --color-border: #373737;
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #a0a0a0;
+  --color-text-muted: #707070;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    background-color: var(--color-bg-main);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .notion-card {
+    @apply bg-bg-card border border-border rounded-lg shadow-sm transition-colors;
+  }
+
+  .notion-button {
+    @apply px-3 py-1.5 rounded bg-bg-sidebar hover:bg-border text-text-primary text-sm font-medium transition-colors border border-border inline-flex items-center gap-2;
+  }
+
+  .notion-button-primary {
+    @apply px-3 py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors inline-flex items-center gap-2 shadow-sm;
+  }
+
+  .notion-input {
+    @apply w-full bg-bg-main border border-border text-text-primary text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all placeholder:text-text-muted shadow-sm;
+  }
+  
+  .notion-select {
+    @apply w-full bg-bg-main border border-border text-text-primary text-sm rounded-md px-3 py-2 appearance-none focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-all shadow-sm;
+  }
+  
+  .notion-label {
+    @apply block text-sm font-medium text-text-secondary mb-1.5;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Custom Scrollbar for Notion feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d3d1cb;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #aeaca6;
 }

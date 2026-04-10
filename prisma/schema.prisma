@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// 1. VEP (Vehicle / Equipment / Plant)
+model Vep {
+  id                 String   @id @default(uuid())
+  type               String   // "Vehicle", "Equipment", "Plant"
+  registrationNumber String   @unique // BA-xxxx for vehicles, EM-xxxx for equipment/plant
+  category           String?  // e.g. "Small Utility Vehicle", "Heavy Earth Mover"
+  oem                String?  // e.g. "Mahindra & Mahindra Ltd"
+  model              String?  // e.g. "Scorpio (4x4)"
+  engineNumber       String?
+  chassisNumber      String?
+  status             String   @default("Active") // "Active", "Under Maintenance"
+  createdAt          DateTime @default(now())
+  workOrders         WorkOrder[]
+}
+
+// 2. Work Orders
+model WorkOrder {
+  id              String   @id @default(uuid())
+  workOrderNumber String   @unique
+  vepId           String
+  vep             Vep      @relation(fields: [vepId], references: [id], onDelete: Cascade)
+  dateReceived    String   // stored as YYYY-MM-DD
+  workType        String   // "KPL_LPH_TEST", "SPARE_REPLACEMENT"
+  status          String   @default("PENDING") // "PENDING","ACCEPTED","ASSIGNED_TO_JOB_CARD","COMPLETED"
+  remarks         String?
+  createdAt       DateTime @default(now())
+  jobCards        JobCard[]
+}
+
+// 3. Job Cards
+model JobCard {
+  id             String   @id @default(uuid())
+  jobCardNumber  String   @unique
+  workOrderId    String
+  workOrder      WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  openedDate     String   // YYYY-MM-DD
+  closedDate     String?
+  testDate       String?
+  testType       String?  // "KPL" or "LPH"
+  testResult     String?
+  status         String   @default("OPEN")
+  remarks        String?
+  createdAt      DateTime @default(now())
+  ions           Ion[]
+  requestedSpares RequestedSpare[]
+  nacs           Nac[]
+  procurements   Procurement[]
+  crvs           Crv[]
+  civs           Civ[]
+}
+
+// 4. ION (Inter Office Note)
+model Ion {
+  id              String   @id @default(uuid())
+  jobCardId       String
+  jobCard         JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  referenceNumber String
+  dateRequested   String
+  dateReceived    String?
+  remarks         String?
+  createdAt       DateTime @default(now())
+  requestedSpares RequestedSpare[]
+}
+
+// 5. Requested Spares
+model RequestedSpare {
+  id                String   @id @default(uuid())
+  jobCardId         String
+  jobCard           JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  ionId             String?
+  ion               Ion?     @relation(fields: [ionId], references: [id], onDelete: SetNull)
+  spareName         String
+  partNumber        String?
+  quantityRequested Int      @default(1)
+  quantityReceived  Int      @default(0)
+  scalingStatus     String   @default("NOT_STARTED") // "NOT_STARTED","IN_PROGRESS","DONE"
+  scalingStartDate  String?
+  availability      String   @default("UNKNOWN") // "UNKNOWN","AVAILABLE_IN_STORE","NOT_AVAILABLE"
+  status            String   @default("PENDING") // "PENDING","SCALING","NAC_REQUESTED","PROCURING","RECEIVED","ISSUED"
+  createdAt         DateTime @default(now())
+  crvItems          CrvItem[]
+}
+
+// 6. NAC (Non-Availability Certificate)
+model Nac {
+  id           String   @id @default(uuid())
+  jobCardId    String
+  jobCard      JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  requestDate  String
+  receivedDate String?
+  nacStatus    String   @default("REQUESTED") // "REQUESTED","SPARES_PROVIDED_BY_STORE","NAC_ISSUED"
+  remarks      String?
+  createdAt    DateTime @default(now())
+}
+
+// 7. Procurement Details
+model Procurement {
+  id                 String   @id @default(uuid())
+  jobCardId          String
+  jobCard            JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  method             String   // "MoU","GeM","Imprest"
+  supplyOrderNumber  String?
+  vendorName         String?
+  procurementDate    String?
+  remarks            String?
+  createdAt          DateTime @default(now())
+  crvs               Crv[]
+}
+
+// 8. CRV (Certified Receipt Voucher) / RV (Receive Voucher)
+model Crv {
+  id              String   @id @default(uuid())
+  jobCardId       String
+  jobCard         JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  procurementId   String?
+  procurement     Procurement? @relation(fields: [procurementId], references: [id], onDelete: SetNull)
+  voucherType     String   @default("CRV") // "CRV" or "RV"
+  voucherNumber   String
+  vendorOrUnitName String?
+  receiptDate     String
+  remarks         String?
+  createdAt       DateTime @default(now())
+  crvItems        CrvItem[]
+}
+
+// 9. CRV Line Items
+model CrvItem {
+  id               String   @id @default(uuid())
+  crvId            String
+  crv              Crv      @relation(fields: [crvId], references: [id], onDelete: Cascade)
+  requestedSpareId String?
+  requestedSpare   RequestedSpare? @relation(fields: [requestedSpareId], references: [id], onDelete: SetNull)
+  spareName        String
+  partNumber       String?
+  quantityReceived Int      @default(1)
+  createdAt        DateTime @default(now())
+}
+
+// 10. CIV (Certified Issue Voucher)
+model Civ {
+  id        String   @id @default(uuid())
+  jobCardId String
+  jobCard   JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  civNumber String
+  issueDate String
+  remarks   String?
+  createdAt DateTime @default(now())
+}
