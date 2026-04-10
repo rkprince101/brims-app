@@ -4,18 +4,15 @@ import { NextResponse } from "next/server";
 export async function PUT(req, { params }) {
   const { id } = await params;
   const body = await req.json();
-  const nac = await prisma.nac.update({
+  const p = await prisma.procurement.update({
     where: { id },
     data: body,
-    include: {
-      requestedSpare: { select: { spareName: true, partNumber: true } },
-    },
   });
-  return NextResponse.json(nac);
+  return NextResponse.json(p);
 }
 
 export async function DELETE(req, { params }) {
   const { id } = await params;
-  await prisma.nac.delete({ where: { id } });
+  await prisma.procurement.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

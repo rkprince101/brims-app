@@ -11,3 +11,9 @@ export async function PUT(req, { params }) {
   });
   return NextResponse.json(spare);
 }
+
+export async function DELETE(req, { params }) {
+  const { id } = await params;
+  await prisma.requestedSpare.delete({ where: { id } });
+  return NextResponse.json({ success: true });
+}

@@ -160,7 +160,22 @@ export function useIONs(jobCardId) {
     return data;
   };
 
-  return { ions, loading, refetch: fetchIons, addION };
+  const updateION = async (id, updates) => {
+    const data = await fetchApi(`/api/ions/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    setIons((prev) => prev.map((i) => (i.id === id ? data : i)));
+    return data;
+  };
+
+  const deleteION = async (id) => {
+    await fetchApi(`/api/ions/${id}`, { method: "DELETE" });
+    setIons((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  return { ions, loading, refetch: fetchIons, addION, updateION, deleteION };
 }
 
 // ---- Requested Spares ----
@@ -200,7 +215,12 @@ export function useRequestedSpares(jobCardId) {
     return data;
   };
 
-  return { spares, loading, refetch: fetchSpares, addSpare, updateSpare };
+  const deleteSpare = async (id) => {
+    await fetchApi(`/api/spares/${id}`, { method: "DELETE" });
+    setSpares((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  return { spares, loading, refetch: fetchSpares, addSpare, updateSpare, deleteSpare };
 }
 
 // ---- NACs ----
@@ -240,7 +260,12 @@ export function useNACs(jobCardId) {
     return data;
   };
 
-  return { nacs, loading, refetch: fetchNacs, addNAC, updateNAC };
+  const deleteNAC = async (id) => {
+    await fetchApi(`/api/nacs/${id}`, { method: "DELETE" });
+    setNacs((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  return { nacs, loading, refetch: fetchNacs, addNAC, updateNAC, deleteNAC };
 }
 
 // ---- Procurements ----
@@ -270,7 +295,22 @@ export function useProcurements(jobCardId) {
     return data;
   };
 
-  return { procurements, loading, refetch: fetchProc, addProcurement };
+  const updateProcurement = async (id, updates) => {
+    const data = await fetchApi(`/api/procurements/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    setProcurements((prev) => prev.map((p) => (p.id === id ? data : p)));
+    return data;
+  };
+
+  const deleteProcurement = async (id) => {
+    await fetchApi(`/api/procurements/${id}`, { method: "DELETE" });
+    setProcurements((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  return { procurements, loading, refetch: fetchProc, addProcurement, updateProcurement, deleteProcurement };
 }
 
 // ---- CRVs ----
@@ -300,7 +340,22 @@ export function useCRVs(jobCardId) {
     return data;
   };
 
-  return { crvs, loading, refetch: fetchCrvs, addCRV };
+  const updateCRV = async (id, updates) => {
+    const data = await fetchApi(`/api/crvs/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    setCrvs((prev) => prev.map((c) => (c.id === id ? data : c)));
+    return data;
+  };
+
+  const deleteCRV = async (id) => {
+    await fetchApi(`/api/crvs/${id}`, { method: "DELETE" });
+    setCrvs((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  return { crvs, loading, refetch: fetchCrvs, addCRV, updateCRV, deleteCRV };
 }
 
 // ---- CIVs ----
@@ -330,7 +385,22 @@ export function useCIVs(jobCardId) {
     return data;
   };
 
-  return { civs, loading, refetch: fetchCivs, addCIV };
+  const updateCIV = async (id, updates) => {
+    const data = await fetchApi(`/api/civs/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    setCivs((prev) => prev.map((c) => (c.id === id ? data : c)));
+    return data;
+  };
+
+  const deleteCIV = async (id) => {
+    await fetchApi(`/api/civs/${id}`, { method: "DELETE" });
+    setCivs((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  return { civs, loading, refetch: fetchCivs, addCIV, updateCIV, deleteCIV };
 }
 
 // ---- Global Search ----

@@ -83,22 +83,32 @@ model RequestedSpare {
   quantityReceived  Int      @default(0)
   scalingStatus     String   @default("NOT_STARTED") // "NOT_STARTED","IN_PROGRESS","DONE"
   scalingStartDate  String?
+  scalingStartRemarks String?
+  scalingDoneDate   String?
+  scalingDoneRemarks String?
   availability      String   @default("UNKNOWN") // "UNKNOWN","AVAILABLE_IN_STORE","NOT_AVAILABLE"
   status            String   @default("PENDING") // "PENDING","SCALING","NAC_REQUESTED","PROCURING","RECEIVED","ISSUED"
   createdAt         DateTime @default(now())
   crvItems          CrvItem[]
+  nacs              Nac[]
 }
 
-// 6. NAC (Non-Availability Certificate)
+// 6. NAC (Non-Availability Certificate) — per-spare
 model Nac {
-  id           String   @id @default(uuid())
-  jobCardId    String
-  jobCard      JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
-  requestDate  String
-  receivedDate String?
-  nacStatus    String   @default("REQUESTED") // "REQUESTED","SPARES_PROVIDED_BY_STORE","NAC_ISSUED"
-  remarks      String?
-  createdAt    DateTime @default(now())
+  id              String   @id @default(uuid())
+  jobCardId       String
+  jobCard         JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  requestedSpareId String?
+  requestedSpare  RequestedSpare? @relation(fields: [requestedSpareId], references: [id], onDelete: SetNull)
+  demandNumber    String?  // Unit's demand number
+  demandDate      String?  // Unit's demand date
+  requestDate     String
+  receivedDate    String?
+  controlNumber   String?  // Store division's control/issue number
+  controlDate     String?  // Store division's control/issue date
+  nacStatus       String   @default("REQUESTED") // "REQUESTED","SPARES_PROVIDED_BY_STORE","NAC_ISSUED"
+  remarks         String?
+  createdAt       DateTime @default(now())
 }
 
 // 7. Procurement Details

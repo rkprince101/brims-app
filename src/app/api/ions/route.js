@@ -8,6 +8,7 @@ export async function GET(req) {
   const ions = await prisma.ion.findMany({
     where,
     orderBy: { createdAt: "desc" },
+    include: { requestedSpares: true },
   });
   return NextResponse.json(ions);
 }

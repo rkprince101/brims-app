@@ -3,11 +3,31 @@
 import { useState } from "react";
 import {
   ArrowLeft, Plus, FileText, ClipboardCheck, Scale, Shield,
-  Package, Receipt, CheckCircle2, Truck, Clock
+  Package, Receipt, CheckCircle2, Truck, Clock, Pencil, Trash2
 } from "lucide-react";
 import { useIONs, useRequestedSpares, useNACs, useProcurements, useCRVs, useCIVs } from "@/hooks/useData";
 import Modal from "@/components/ui/Modal";
 import StatusBadge from "@/components/ui/StatusBadge";
+
+// ========== Inline Edit Row ==========
+function InlineEdit({ label, value, onSave, type = "text" }) {
+  const [editing, setEditing] = useState(false);
+  const [v, setV] = useState(value || "");
+  const save = () => { onSave(v); setEditing(false); };
+  if (!editing) return (
+    <span className="group inline-flex items-center gap-1 cursor-pointer" onClick={() => setEditing(true)}>
+      <span>{value || "—"}</span>
+      <Pencil size={10} className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+    </span>
+  );
+  return (
+    <span className="inline-flex items-center gap-1">
+      <input type={type} value={v} onChange={(e) => setV(e.target.value)} className="notion-input !py-0.5 !px-1 !text-xs w-28" autoFocus />
+      <button onClick={save} className="text-[10px] text-accent hover:underline">Save</button>
+      <button onClick={() => setEditing(false)} className="text-[10px] text-text-muted hover:underline">✕</button>
+    </span>
+  );
+}
 
 // ========== Section Components ==========
 
@@ -18,9 +38,7 @@ function TestingSection({ jobCard, onUpdate }) {
 
   const handleComplete = async () => {
     await onUpdate(jobCard.id, {
-      testDate: testDate,
-      testType: testType,
-      testResult: testResult,
+      testDate, testType, testResult,
       status: "CLOSED",
       closedDate: new Date().toISOString().split("T")[0],
     });
@@ -60,39 +78,39 @@ function TestingSection({ jobCard, onUpdate }) {
   );
 }
 
-function IONSection({ jobCard, ions, addION, onUpdate, refetchSpares }) {
+// ========== ION Section ==========
+function IONSection({ jobCard, ions, addION, updateION, deleteION, onUpdate, refetchSpares }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ referenceNumber: "", dateRequested: new Date().toISOString().split("T")[0], remarks: "" });
   const [spares, setSpares] = useState([]);
+  const [editId, setEditId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   const addSpareRow = () => setSpares([...spares, { spareName: "", partNumber: "", quantityRequested: 1 }]);
-  const updateSpareRow = (i, field, value) => {
-    const updated = [...spares];
-    updated[i][field] = value;
-    setSpares(updated);
-  };
+  const updateSpareRow = (i, field, value) => { const u = [...spares]; u[i][field] = value; setSpares(u); };
   const removeSpareRow = (i) => setSpares(spares.filter((_, idx) => idx !== i));
 
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!form.referenceNumber.trim()) return;
-    
-    // Pass spares directly into the ION creation
-    await addION({
-      ...form,
-      spares: spares.filter((s) => s.spareName.trim())
-    });
-    
+    await addION({ ...form, spares: spares.filter((s) => s.spareName.trim()) });
     if (jobCard.status === "OPEN" || jobCard.status === "WAITING_FOR_ION") {
       await onUpdate(jobCard.id, { status: "WAITING_FOR_ION" });
     }
-    
     setForm({ referenceNumber: "", dateRequested: new Date().toISOString().split("T")[0], remarks: "" });
     setSpares([]);
     setShowForm(false);
-    
-    // Explicitly refetch the global spares after ION brings in new nested spares
     if (refetchSpares) refetchSpares();
+  };
+
+  const handleEdit = (ion) => {
+    setEditId(ion.id);
+    setEditForm({ referenceNumber: ion.referenceNumber, dateRequested: ion.dateRequested, remarks: ion.remarks || "" });
+  };
+
+  const handleEditSave = async () => {
+    await updateION(editId, editForm);
+    setEditId(null);
   };
 
   return (
@@ -110,15 +128,13 @@ function IONSection({ jobCard, ions, addION, onUpdate, refetchSpares }) {
           <div className="grid grid-cols-2 gap-3">
             <input type="text" value={form.referenceNumber} onChange={(e) => setForm({ ...form, referenceNumber: e.target.value })}
               placeholder="ION Reference Number *" className="notion-input" required />
-            <input type="date" value={form.dateRequested} onChange={(e) => setForm({ ...form, dateRequested: e.target.value })}
-              className="notion-input" required />
+            <input type="date" value={form.dateRequested} onChange={(e) => setForm({ ...form, dateRequested: e.target.value })} className="notion-input" required />
           </div>
           <input type="text" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })}
             placeholder="Remarks (optional)" className="notion-input" />
-            
           <div className="space-y-2 pt-2 border-t border-border mt-3">
             <div className="flex items-center justify-between mt-2">
-              <span className="text-sm font-medium text-text-secondary">Related Spares <span className="text-danger">*</span></span>
+              <span className="text-sm font-medium text-text-secondary">Related Spares</span>
               <button type="button" onClick={addSpareRow} className="text-xs text-accent hover:underline">+ Add Spare Item</button>
             </div>
             {spares.map((spare, i) => (
@@ -130,7 +146,6 @@ function IONSection({ jobCard, ions, addION, onUpdate, refetchSpares }) {
               </div>
             ))}
           </div>
-
           <div className="flex gap-2 pt-2">
             <button type="submit" className="notion-button bg-warning text-white border-warning hover:bg-warning/90">Save ION & Spares</button>
             <button type="button" onClick={() => { setShowForm(false); setSpares([]); }} className="notion-button">Cancel</button>
@@ -140,17 +155,35 @@ function IONSection({ jobCard, ions, addION, onUpdate, refetchSpares }) {
       {ions.length > 0 ? (
         <div className="space-y-2 pt-2">
           {ions.map((ion) => (
-            <div key={ion.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-bg-main hover:bg-bg-sidebar transition-colors">
-              <div>
-                <span className="text-sm font-mono font-bold text-warning">{ion.referenceNumber}</span>
-                {ion.remarks && <p className="text-xs text-text-muted mt-0.5">{ion.remarks}</p>}
-                {ion.requestedSpares?.length > 0 && (
-                  <p className="text-xs text-text-secondary mt-1 border-t border-border/50 pt-1">
-                    {ion.requestedSpares.length} Spares Included
-                  </p>
-                )}
-              </div>
-              <span className="text-xs text-text-secondary">{ion.dateRequested}</span>
+            <div key={ion.id} className="p-3 rounded-lg border border-border bg-bg-main hover:bg-bg-sidebar transition-colors">
+              {editId === ion.id ? (
+                <div className="space-y-2 animate-fade-in">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={editForm.referenceNumber} onChange={(e) => setEditForm({ ...editForm, referenceNumber: e.target.value })} className="notion-input !text-xs" />
+                    <input type="date" value={editForm.dateRequested} onChange={(e) => setEditForm({ ...editForm, dateRequested: e.target.value })} className="notion-input !text-xs" />
+                  </div>
+                  <input value={editForm.remarks} onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })} placeholder="Remarks" className="notion-input !text-xs" />
+                  <div className="flex gap-2">
+                    <button onClick={handleEditSave} className="text-xs text-accent hover:underline">Save</button>
+                    <button onClick={() => setEditId(null)} className="text-xs text-text-muted hover:underline">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-mono font-bold text-warning">{ion.referenceNumber}</span>
+                    {ion.remarks && <p className="text-xs text-text-muted mt-0.5">{ion.remarks}</p>}
+                    {ion.requestedSpares?.length > 0 && (
+                      <p className="text-xs text-text-secondary mt-1 border-t border-border/50 pt-1">{ion.requestedSpares.length} Spares Included</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-text-secondary">{ion.dateRequested}</span>
+                    <button onClick={() => handleEdit(ion)} className="text-text-muted hover:text-accent transition-colors"><Pencil size={12} /></button>
+                    <button onClick={() => { if (confirm("Delete this ION?")) deleteION(ion.id); }} className="text-text-muted hover:text-danger transition-colors"><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -161,33 +194,49 @@ function IONSection({ jobCard, ions, addION, onUpdate, refetchSpares }) {
   );
 }
 
-function SparesSection({ jobCard, spares, updateSpare, onUpdate }) {
-  const handleScaling = async (spare) => {
-    await updateSpare(spare.id, {
-      scalingStatus: "IN_PROGRESS",
-      scalingStartDate: new Date().toISOString().split("T")[0],
-      status: "SCALING",
-    });
-    if (jobCard.status !== "SCALING_IN_PROGRESS") {
-      await onUpdate(jobCard.id, { status: "SCALING_IN_PROGRESS" });
-    }
-  };
+// ========== Spares & Scaling Section ==========
+function SparesSection({ jobCard, spares, updateSpare, deleteSpare, onUpdate }) {
+  const [scalingModal, setScalingModal] = useState(null); // { spare, action }
+  const [scalingRemarks, setScalingRemarks] = useState("");
 
-  const handleAlreadyScaled = async (spare) => {
-    await updateSpare(spare.id, { scalingStatus: "DONE", status: "NAC_REQUESTED" });
-    // Same check to potentially transition to WAITING_FOR_NAC
-    const allDone = spares.every((s) => s.id === spare.id || s.scalingStatus === "DONE");
-    if (allDone) {
-      await onUpdate(jobCard.id, { status: "WAITING_FOR_NAC" });
-    }
-  };
+  const now = () => new Date().toISOString().split("T")[0] + " " + new Date().toTimeString().slice(0, 5);
 
-  const handleScalingDone = async (spare) => {
-    await updateSpare(spare.id, { scalingStatus: "DONE", status: "NAC_REQUESTED" });
-    const allDone = spares.every((s) => s.id === spare.id || s.scalingStatus === "DONE");
-    if (allDone) {
-      await onUpdate(jobCard.id, { status: "WAITING_FOR_NAC" });
+  const handleScaling = async () => {
+    const spare = scalingModal.spare;
+    const action = scalingModal.action;
+    if (action === "start") {
+      await updateSpare(spare.id, {
+        scalingStatus: "IN_PROGRESS",
+        scalingStartDate: now(),
+        scalingStartRemarks: scalingRemarks,
+        status: "SCALING",
+      });
+      if (jobCard.status !== "SCALING_IN_PROGRESS") {
+        await onUpdate(jobCard.id, { status: "SCALING_IN_PROGRESS" });
+      }
+    } else if (action === "done") {
+      await updateSpare(spare.id, {
+        scalingStatus: "DONE",
+        scalingDoneDate: now(),
+        scalingDoneRemarks: scalingRemarks,
+        status: "NAC_REQUESTED",
+      });
+      const allDone = spares.every((s) => s.id === spare.id || s.scalingStatus === "DONE");
+      if (allDone) await onUpdate(jobCard.id, { status: "WAITING_FOR_NAC" });
+    } else if (action === "already") {
+      await updateSpare(spare.id, {
+        scalingStatus: "DONE",
+        scalingStartDate: now(),
+        scalingDoneDate: now(),
+        scalingStartRemarks: "Already scaled",
+        scalingDoneRemarks: scalingRemarks || "Already scaled",
+        status: "NAC_REQUESTED",
+      });
+      const allDone = spares.every((s) => s.id === spare.id || s.scalingStatus === "DONE");
+      if (allDone) await onUpdate(jobCard.id, { status: "WAITING_FOR_NAC" });
     }
+    setScalingModal(null);
+    setScalingRemarks("");
   };
 
   return (
@@ -197,6 +246,30 @@ function SparesSection({ jobCard, spares, updateSpare, onUpdate }) {
           <Scale size={16} className="text-accent" /> Requested Spares & Scaling
         </h3>
       </div>
+
+      {/* Scaling Action Modal */}
+      {scalingModal && (
+        <Modal onClose={() => { setScalingModal(null); setScalingRemarks(""); }}
+          title={`${scalingModal.action === "start" ? "Start Scaling" : scalingModal.action === "done" ? "Mark Scaling Done" : "Already Scaled"} — ${scalingModal.spare.spareName}`}>
+          <div className="space-y-3">
+            <div>
+              <label className="notion-label">Date & Time</label>
+              <p className="text-sm text-text-primary font-mono">{now()}</p>
+            </div>
+            <div>
+              <label className="notion-label">Remarks / Note</label>
+              <textarea value={scalingRemarks} onChange={(e) => setScalingRemarks(e.target.value)}
+                placeholder="Add any notes about this scaling action..."
+                className="notion-input min-h-[60px]" />
+            </div>
+            <div className="flex gap-2 pt-2 border-t border-border">
+              <button onClick={handleScaling} className="notion-button-primary">Confirm</button>
+              <button onClick={() => { setScalingModal(null); setScalingRemarks(""); }} className="notion-button">Cancel</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {spares && spares.length > 0 ? (
         <div className="overflow-x-auto pt-2">
           <table className="w-full text-xs text-left">
@@ -205,8 +278,8 @@ function SparesSection({ jobCard, spares, updateSpare, onUpdate }) {
                 <th className="py-2.5 px-3 font-medium text-text-muted">Spare & Part#</th>
                 <th className="py-2.5 px-3 font-medium text-text-muted text-center">Qty</th>
                 <th className="py-2.5 px-3 font-medium text-text-muted">ION</th>
-                <th className="py-2.5 px-3 font-medium text-text-muted">Status</th>
-                <th className="py-2.5 px-3 font-medium text-text-muted text-right">Scaling Action</th>
+                <th className="py-2.5 px-3 font-medium text-text-muted">Status / Scaling Log</th>
+                <th className="py-2.5 px-3 font-medium text-text-muted text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -221,25 +294,35 @@ function SparesSection({ jobCard, spares, updateSpare, onUpdate }) {
                   <td className="py-3 px-3">
                     <div className="flex flex-col gap-1 items-start">
                       <StatusBadge status={s.scalingStatus} />
+                      {s.scalingStartDate && (
+                        <div className="text-[10px] text-text-muted">
+                          Started: {s.scalingStartDate}
+                          {s.scalingStartRemarks && <span className="italic ml-1">— {s.scalingStartRemarks}</span>}
+                        </div>
+                      )}
+                      {s.scalingDoneDate && (
+                        <div className="text-[10px] text-success">
+                          Done: {s.scalingDoneDate}
+                          {s.scalingDoneRemarks && <span className="italic ml-1">— {s.scalingDoneRemarks}</span>}
+                        </div>
+                      )}
                       {s.status !== "PENDING" && s.status !== "SCALING" && <StatusBadge status={s.status} />}
                     </div>
                   </td>
                   <td className="py-3 px-3 text-right">
-                    {s.scalingStatus === "NOT_STARTED" && (
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => handleAlreadyScaled(s)} className="notion-button text-success border-success-bg hover:bg-success-bg !py-1 !text-[11px]">
-                          Already Scaled
-                        </button>
-                        <button onClick={() => handleScaling(s)} className="notion-button text-warning border-warning-bg hover:bg-warning-bg !py-1 !text-[11px]">
-                          Start Scaling
-                        </button>
-                      </div>
-                    )}
-                    {s.scalingStatus === "IN_PROGRESS" && (
-                      <button onClick={() => handleScalingDone(s)} className="notion-button text-success border-success-bg hover:bg-success-bg !py-1 !text-[11px]">
-                        Mark Done
-                      </button>
-                    )}
+                    <div className="flex justify-end gap-1.5">
+                      {s.scalingStatus === "NOT_STARTED" && (
+                        <>
+                          <button onClick={() => setScalingModal({ spare: s, action: "already" })} className="notion-button text-success border-success-bg hover:bg-success-bg !py-1 !text-[11px]">Already Scaled</button>
+                          <button onClick={() => setScalingModal({ spare: s, action: "start" })} className="notion-button text-warning border-warning-bg hover:bg-warning-bg !py-1 !text-[11px]">Start Scaling</button>
+                        </>
+                      )}
+                      {s.scalingStatus === "IN_PROGRESS" && (
+                        <button onClick={() => setScalingModal({ spare: s, action: "done" })} className="notion-button text-success border-success-bg hover:bg-success-bg !py-1 !text-[11px]">Mark Done</button>
+                      )}
+                      <button onClick={() => { if (confirm(`Delete spare "${s.spareName}"?`)) deleteSpare(s.id); }}
+                        className="text-text-muted hover:text-danger transition-colors p-1"><Trash2 size={11} /></button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -253,16 +336,26 @@ function SparesSection({ jobCard, spares, updateSpare, onUpdate }) {
   );
 }
 
-function NACSection({ jobCardId, jobCard, onUpdate }) {
-  const { nacs, addNAC, updateNAC } = useNACs(jobCardId);
+// ========== NAC Section (Per-Spare) ==========
+function NACSection({ jobCard, spares, nacs, addNAC, updateNAC, deleteNAC, onUpdate }) {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ requestDate: new Date().toISOString().split("T")[0], remarks: "" });
+  const [form, setForm] = useState({
+    requestedSpareId: "", demandNumber: "", demandDate: "",
+    requestDate: new Date().toISOString().split("T")[0], remarks: ""
+  });
+  const [editId, setEditId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
+  // Only show spares that have completed scaling
+  const scaledSpares = (spares || []).filter((s) => s.scalingStatus === "DONE");
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    await addNAC(form);
-    await onUpdate(jobCard.id, { status: "WAITING_FOR_NAC" });
-    setForm({ requestDate: new Date().toISOString().split("T")[0], remarks: "" });
+    await addNAC({ ...form, jobCardId: jobCard.id });
+    if (jobCard.status !== "WAITING_FOR_NAC") {
+      await onUpdate(jobCard.id, { status: "WAITING_FOR_NAC" });
+    }
+    setForm({ requestedSpareId: "", demandNumber: "", demandDate: "", requestDate: new Date().toISOString().split("T")[0], remarks: "" });
     setShowForm(false);
   };
 
@@ -270,7 +363,10 @@ function NACSection({ jobCardId, jobCard, onUpdate }) {
     await updateNAC(nac.id, {
       receivedDate: new Date().toISOString().split("T")[0],
       nacStatus: nacResult,
+      controlNumber: editForm.controlNumber || nac.controlNumber,
+      controlDate: editForm.controlDate || nac.controlDate,
     });
+    // Check if all NACs for all spares are resolved
     if (nacResult === "NAC_ISSUED") {
       await onUpdate(jobCard.id, { status: "WAITING_FOR_PROCUREMENT" });
     } else {
@@ -278,51 +374,145 @@ function NACSection({ jobCardId, jobCard, onUpdate }) {
     }
   };
 
+  const handleEdit = (nac) => {
+    setEditId(nac.id);
+    setEditForm({
+      demandNumber: nac.demandNumber || "",
+      demandDate: nac.demandDate || "",
+      controlNumber: nac.controlNumber || "",
+      controlDate: nac.controlDate || "",
+      remarks: nac.remarks || "",
+    });
+  };
+
+  const handleEditSave = async () => {
+    await updateNAC(editId, editForm);
+    setEditId(null);
+  };
+
   return (
     <div className="notion-card p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-          <Shield size={16} className="text-purple-600" /> NAC (Store Division)
+          <Shield size={16} className="text-purple-600" /> NAC (Store Division) — Per Spare
         </h3>
         <button onClick={() => setShowForm(!showForm)} className="notion-button text-purple-700 bg-purple-50 border-purple-100 hover:bg-purple-100">
           <Plus size={12} /> Request NAC
         </button>
       </div>
+
       {showForm && (
         <form onSubmit={handleAdd} className="p-4 rounded-lg bg-bg-sidebar border border-border space-y-3 animate-fade-in mt-2">
+          <div>
+            <label className="notion-label">Select Spare Part <span className="text-danger">*</span></label>
+            {scaledSpares.length === 0 ? (
+              <div className="p-3 bg-warning-bg text-warning rounded border border-warning/20 text-sm">
+                No spares have completed scaling yet. Complete scaling first.
+              </div>
+            ) : (
+              <select required value={form.requestedSpareId} onChange={(e) => setForm({ ...form, requestedSpareId: e.target.value })} className="notion-select">
+                <option value="" disabled>Select a spare...</option>
+                {scaledSpares.map((s) => (
+                  <option key={s.id} value={s.id}>{s.spareName}{s.partNumber ? ` (${s.partNumber})` : ""}</option>
+                ))}
+              </select>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
-            <input type="date" value={form.requestDate} onChange={(e) => setForm({ ...form, requestDate: e.target.value })} className="notion-input" />
-            <input type="text" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-              placeholder="Remarks" className="notion-input" />
+            <div>
+              <label className="notion-label">Demand Number <span className="text-danger">*</span></label>
+              <input type="text" required value={form.demandNumber} onChange={(e) => setForm({ ...form, demandNumber: e.target.value })}
+                placeholder="Unit demand number" className="notion-input" />
+            </div>
+            <div>
+              <label className="notion-label">Demand Date</label>
+              <input type="date" value={form.demandDate} onChange={(e) => setForm({ ...form, demandDate: e.target.value })} className="notion-input" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="notion-label">Request Date</label>
+              <input type="date" value={form.requestDate} onChange={(e) => setForm({ ...form, requestDate: e.target.value })} className="notion-input" />
+            </div>
+            <div>
+              <label className="notion-label">Remarks</label>
+              <input type="text" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+                placeholder="Notes" className="notion-input" />
+            </div>
           </div>
           <div className="flex gap-2 pt-2">
-            <button type="submit" className="notion-button bg-purple-600 text-white border-purple-600 hover:bg-purple-700">Submit Request</button>
+            <button type="submit" className="notion-button bg-purple-600 text-white border-purple-600 hover:bg-purple-700" disabled={scaledSpares.length === 0}>Submit NAC Request</button>
             <button type="button" onClick={() => setShowForm(false)} className="notion-button">Cancel</button>
           </div>
         </form>
       )}
+
       {nacs.length > 0 ? (
         <div className="space-y-2 pt-2">
           {nacs.map((nac) => (
-            <div key={nac.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-bg-main hover:bg-bg-sidebar transition-colors">
-              <div>
-                <span className="text-xs text-text-secondary">Requested: {nac.requestDate}</span>
-                {nac.receivedDate && <span className="text-xs text-text-secondary ml-3">Received: {nac.receivedDate}</span>}
-                {nac.remarks && <p className="text-xs text-text-muted mt-0.5">{nac.remarks}</p>}
-              </div>
-              <div className="flex items-center gap-3">
-                <StatusBadge status={nac.nacStatus} />
-                {nac.nacStatus === "REQUESTED" && (
-                  <div className="flex gap-1.5 border-l border-border pl-3">
-                    <button onClick={() => handleNACReceived(nac, "NAC_ISSUED")} className="notion-button text-purple-700 bg-purple-50 border-purple-200 !py-1 !text-[11px]">
-                      NAC Issued
-                    </button>
-                    <button onClick={() => handleNACReceived(nac, "SPARES_PROVIDED_BY_STORE")} className="notion-button text-success bg-success-bg border-success/20 !py-1 !text-[11px]">
-                      Store Provided
-                    </button>
+            <div key={nac.id} className="p-3 rounded-lg border border-border bg-bg-main hover:bg-bg-sidebar transition-colors">
+              {editId === nac.id ? (
+                <div className="space-y-2 animate-fade-in">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-text-muted uppercase tracking-wider">Demand No.</label>
+                      <input value={editForm.demandNumber} onChange={(e) => setEditForm({ ...editForm, demandNumber: e.target.value })} className="notion-input !text-xs" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-text-muted uppercase tracking-wider">Demand Date</label>
+                      <input type="date" value={editForm.demandDate} onChange={(e) => setEditForm({ ...editForm, demandDate: e.target.value })} className="notion-input !text-xs" />
+                    </div>
                   </div>
-                )}
-              </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-text-muted uppercase tracking-wider">Control No.</label>
+                      <input value={editForm.controlNumber} onChange={(e) => setEditForm({ ...editForm, controlNumber: e.target.value })} className="notion-input !text-xs" placeholder="Store control number" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-text-muted uppercase tracking-wider">Control Date</label>
+                      <input type="date" value={editForm.controlDate} onChange={(e) => setEditForm({ ...editForm, controlDate: e.target.value })} className="notion-input !text-xs" />
+                    </div>
+                  </div>
+                  <input value={editForm.remarks} onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })} placeholder="Remarks" className="notion-input !text-xs" />
+                  <div className="flex gap-2">
+                    <button onClick={handleEditSave} className="text-xs text-accent hover:underline">Save</button>
+                    <button onClick={() => setEditId(null)} className="text-xs text-text-muted hover:underline">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded">
+                          {nac.requestedSpare?.spareName || "Unlinked Spare"}
+                        </span>
+                        <StatusBadge status={nac.nacStatus} />
+                      </div>
+                      {nac.demandNumber && <p className="text-xs text-text-secondary">Demand: <span className="font-mono font-medium">{nac.demandNumber}</span>{nac.demandDate ? ` (${nac.demandDate})` : ""}</p>}
+                      <p className="text-xs text-text-secondary">Requested: {nac.requestDate}{nac.receivedDate ? ` → Received: ${nac.receivedDate}` : ""}</p>
+                      {nac.controlNumber && <p className="text-xs text-text-secondary">Control: <span className="font-mono font-medium">{nac.controlNumber}</span>{nac.controlDate ? ` (${nac.controlDate})` : ""}</p>}
+                      {nac.remarks && <p className="text-xs text-text-muted italic">{nac.remarks}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleEdit(nac)} className="text-text-muted hover:text-accent transition-colors"><Pencil size={12} /></button>
+                      <button onClick={() => { if (confirm("Delete this NAC?")) deleteNAC(nac.id); }} className="text-text-muted hover:text-danger transition-colors"><Trash2 size={12} /></button>
+                    </div>
+                  </div>
+                  {nac.nacStatus === "REQUESTED" && (
+                    <div className="flex gap-1.5 border-t border-border pt-2 mt-2">
+                      <div className="flex gap-2 items-center flex-1">
+                        <input placeholder="Control No." className="notion-input !text-xs !py-1 flex-1"
+                          onChange={(e) => setEditForm((f) => ({ ...f, controlNumber: e.target.value }))} />
+                        <input type="date" className="notion-input !text-xs !py-1 flex-1"
+                          onChange={(e) => setEditForm((f) => ({ ...f, controlDate: e.target.value }))} />
+                      </div>
+                      <button onClick={() => handleNACReceived(nac, "NAC_ISSUED")} className="notion-button text-purple-700 bg-purple-50 border-purple-200 !py-1 !text-[11px]">NAC Issued</button>
+                      <button onClick={() => handleNACReceived(nac, "SPARES_PROVIDED_BY_STORE")} className="notion-button text-success bg-success-bg border-success/20 !py-1 !text-[11px]">Store Provided</button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -333,16 +523,28 @@ function NACSection({ jobCardId, jobCard, onUpdate }) {
   );
 }
 
-function ProcurementSection({ jobCardId }) {
-  const { procurements, addProcurement } = useProcurements(jobCardId);
+// ========== Procurement Section ==========
+function ProcurementSection({ procurements, addProcurement, updateProcurement, deleteProcurement }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ method: "MoU", supplyOrderNumber: "", vendorName: "", procurementDate: new Date().toISOString().split("T")[0], remarks: "" });
+  const [editId, setEditId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   const handleAdd = async (e) => {
     e.preventDefault();
     await addProcurement(form);
     setForm({ method: "MoU", supplyOrderNumber: "", vendorName: "", procurementDate: new Date().toISOString().split("T")[0], remarks: "" });
     setShowForm(false);
+  };
+
+  const handleEdit = (p) => {
+    setEditId(p.id);
+    setEditForm({ method: p.method, supplyOrderNumber: p.supplyOrderNumber || "", vendorName: p.vendorName || "", procurementDate: p.procurementDate || "", remarks: p.remarks || "" });
+  };
+
+  const handleEditSave = async () => {
+    await updateProcurement(editId, editForm);
+    setEditId(null);
   };
 
   return (
@@ -363,10 +565,8 @@ function ProcurementSection({ jobCardId }) {
               <option value="GeM">SO via GeM</option>
               <option value="Imprest">Imprest</option>
             </select>
-            <input type="text" value={form.supplyOrderNumber} onChange={(e) => setForm({ ...form, supplyOrderNumber: e.target.value })}
-              placeholder="SO / Order Number" className="notion-input" />
-            <input type="text" value={form.vendorName} onChange={(e) => setForm({ ...form, vendorName: e.target.value })}
-              placeholder="Vendor / Firm Name" className="notion-input" />
+            <input type="text" value={form.supplyOrderNumber} onChange={(e) => setForm({ ...form, supplyOrderNumber: e.target.value })} placeholder="SO / Order Number" className="notion-input" />
+            <input type="text" value={form.vendorName} onChange={(e) => setForm({ ...form, vendorName: e.target.value })} placeholder="Vendor / Firm Name" className="notion-input" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <input type="date" value={form.procurementDate} onChange={(e) => setForm({ ...form, procurementDate: e.target.value })} className="notion-input" />
@@ -381,15 +581,42 @@ function ProcurementSection({ jobCardId }) {
       {procurements.length > 0 ? (
         <div className="space-y-2 pt-2">
           {procurements.map((p) => (
-            <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-bg-main hover:bg-bg-sidebar transition-colors">
-              <div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={p.method} />
-                  <span className="text-sm font-mono text-text-primary font-medium">{p.supplyOrderNumber || "No SO#"}</span>
+            <div key={p.id} className="p-3 rounded-lg border border-border bg-bg-main hover:bg-bg-sidebar transition-colors">
+              {editId === p.id ? (
+                <div className="space-y-2 animate-fade-in">
+                  <div className="grid grid-cols-3 gap-2">
+                    <select value={editForm.method} onChange={(e) => setEditForm({ ...editForm, method: e.target.value })} className="notion-select !text-xs">
+                      <option value="MoU">SO via MoU</option><option value="GeM">SO via GeM</option><option value="Imprest">Imprest</option>
+                    </select>
+                    <input value={editForm.supplyOrderNumber} onChange={(e) => setEditForm({ ...editForm, supplyOrderNumber: e.target.value })} className="notion-input !text-xs" placeholder="SO#" />
+                    <input value={editForm.vendorName} onChange={(e) => setEditForm({ ...editForm, vendorName: e.target.value })} className="notion-input !text-xs" placeholder="Vendor" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="date" value={editForm.procurementDate} onChange={(e) => setEditForm({ ...editForm, procurementDate: e.target.value })} className="notion-input !text-xs" />
+                    <input value={editForm.remarks} onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })} className="notion-input !text-xs" placeholder="Remarks" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={handleEditSave} className="text-xs text-accent hover:underline">Save</button>
+                    <button onClick={() => setEditId(null)} className="text-xs text-text-muted hover:underline">Cancel</button>
+                  </div>
                 </div>
-                {p.vendorName && <p className="text-xs text-text-muted mt-1">{p.vendorName}</p>}
-              </div>
-              <span className="text-xs text-text-secondary">{p.procurementDate}</span>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={p.method} />
+                      <span className="text-sm font-mono text-text-primary font-medium">{p.supplyOrderNumber || "No SO#"}</span>
+                    </div>
+                    {p.vendorName && <p className="text-xs text-text-muted mt-1">{p.vendorName}</p>}
+                    {p.remarks && <p className="text-xs text-text-muted italic mt-0.5">{p.remarks}</p>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-text-secondary">{p.procurementDate}</span>
+                    <button onClick={() => handleEdit(p)} className="text-text-muted hover:text-accent transition-colors"><Pencil size={12} /></button>
+                    <button onClick={() => { if (confirm("Delete this procurement?")) deleteProcurement(p.id); }} className="text-text-muted hover:text-danger transition-colors"><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -400,20 +627,17 @@ function ProcurementSection({ jobCardId }) {
   );
 }
 
-function CRVSection({ jobCardId, jobCard, onUpdate }) {
-  const { crvs, addCRV } = useCRVs(jobCardId);
-  const { procurements } = useProcurements(jobCardId);
+// ========== CRV Section ==========
+function CRVSection({ jobCard, crvs, addCRV, updateCRV, deleteCRV, procurements, spares, onUpdate }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ voucherType: "CRV", voucherNumber: "", vendorOrUnitName: "", receiptDate: new Date().toISOString().split("T")[0], procurementId: "", remarks: "" });
   const [items, setItems] = useState([]);
+  const [editId, setEditId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   const addItem = () => setItems([...items, { spareName: "", partNumber: "", quantityReceived: 1, requestedSpareId: null }]);
   const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
-  const updateItem = (i, field, value) => {
-    const updated = [...items];
-    updated[i][field] = value;
-    setItems(updated);
-  };
+  const updateItem = (i, field, value) => { const u = [...items]; u[i][field] = value; setItems(u); };
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -423,6 +647,16 @@ function CRVSection({ jobCardId, jobCard, onUpdate }) {
     setForm({ voucherType: "CRV", voucherNumber: "", vendorOrUnitName: "", receiptDate: new Date().toISOString().split("T")[0], procurementId: "", remarks: "" });
     setItems([]);
     setShowForm(false);
+  };
+
+  const handleEdit = (crv) => {
+    setEditId(crv.id);
+    setEditForm({ voucherType: crv.voucherType, voucherNumber: crv.voucherNumber, vendorOrUnitName: crv.vendorOrUnitName || "", receiptDate: crv.receiptDate, remarks: crv.remarks || "" });
+  };
+
+  const handleEditSave = async () => {
+    await updateCRV(editId, editForm);
+    setEditId(null);
   };
 
   return (
@@ -442,10 +676,8 @@ function CRVSection({ jobCardId, jobCard, onUpdate }) {
               <option value="CRV">CRV</option>
               <option value="RV">RV (Receive Voucher)</option>
             </select>
-            <input type="text" value={form.voucherNumber} onChange={(e) => setForm({ ...form, voucherNumber: e.target.value })}
-              placeholder="Voucher Number *" className="notion-input" required />
-            <input type="text" value={form.vendorOrUnitName} onChange={(e) => setForm({ ...form, vendorOrUnitName: e.target.value })}
-              placeholder="Vendor / Unit Name" className="notion-input" />
+            <input type="text" value={form.voucherNumber} onChange={(e) => setForm({ ...form, voucherNumber: e.target.value })} placeholder="Voucher Number *" className="notion-input" required />
+            <input type="text" value={form.vendorOrUnitName} onChange={(e) => setForm({ ...form, vendorOrUnitName: e.target.value })} placeholder="Vendor / Unit Name" className="notion-input" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <input type="date" value={form.receiptDate} onChange={(e) => setForm({ ...form, receiptDate: e.target.value })} className="notion-input" />
@@ -454,16 +686,21 @@ function CRVSection({ jobCardId, jobCard, onUpdate }) {
               {procurements.map((p) => <option key={p.id} value={p.id}>{p.method} — {p.supplyOrderNumber || "No SO#"}</option>)}
             </select>
           </div>
-
           <div className="space-y-2 pt-2 border-t border-border mt-3">
             <div className="flex items-center justify-between mt-2">
-              <span className="text-sm font-medium text-text-secondary">Line Items</span>
+              <span className="text-sm font-medium text-text-secondary">Line Items (select from ION spares)</span>
               <button type="button" onClick={addItem} className="text-xs text-accent hover:underline">+ Add Item</button>
             </div>
             {items.map((item, i) => (
               <div key={i} className="grid grid-cols-4 gap-2 items-center">
-                <input type="text" value={item.spareName} onChange={(e) => updateItem(i, "spareName", e.target.value)} placeholder="Spare Name" className="notion-input" />
-                <input type="text" value={item.partNumber} onChange={(e) => updateItem(i, "partNumber", e.target.value)} placeholder="Part#" className="notion-input" />
+                <select value={item.requestedSpareId || ""} onChange={(e) => {
+                  const sel = spares.find(s => s.id === e.target.value);
+                  if (sel) { updateItem(i, "requestedSpareId", sel.id); updateItem(i, "spareName", sel.spareName); updateItem(i, "partNumber", sel.partNumber || ""); }
+                }} className="notion-select">
+                  <option value="">Select spare...</option>
+                  {spares.map((s) => <option key={s.id} value={s.id}>{s.spareName}{s.partNumber ? ` (${s.partNumber})` : ""}</option>)}
+                </select>
+                <input type="text" value={item.spareName} readOnly placeholder="Spare Name" className="notion-input bg-bg-sidebar" />
                 <input type="number" value={item.quantityReceived} onChange={(e) => updateItem(i, "quantityReceived", parseInt(e.target.value) || 1)} min="1" className="notion-input" />
                 <button type="button" onClick={() => removeItem(i)} className="text-danger text-xs hover:underline">Remove</button>
               </div>
@@ -479,18 +716,45 @@ function CRVSection({ jobCardId, jobCard, onUpdate }) {
         <div className="space-y-3 pt-2">
           {crvs.map((crv) => (
             <div key={crv.id} className="p-4 rounded-lg border border-border bg-bg-main hover:bg-bg-sidebar transition-colors">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/50">
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={crv.voucherType} />
-                  <span className="text-sm font-mono font-bold text-text-primary">{crv.voucherNumber}</span>
+              {editId === crv.id ? (
+                <div className="space-y-2 animate-fade-in">
+                  <div className="grid grid-cols-3 gap-2">
+                    <select value={editForm.voucherType} onChange={(e) => setEditForm({ ...editForm, voucherType: e.target.value })} className="notion-select !text-xs">
+                      <option value="CRV">CRV</option><option value="RV">RV</option>
+                    </select>
+                    <input value={editForm.voucherNumber} onChange={(e) => setEditForm({ ...editForm, voucherNumber: e.target.value })} className="notion-input !text-xs" />
+                    <input value={editForm.vendorOrUnitName} onChange={(e) => setEditForm({ ...editForm, vendorOrUnitName: e.target.value })} className="notion-input !text-xs" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="date" value={editForm.receiptDate} onChange={(e) => setEditForm({ ...editForm, receiptDate: e.target.value })} className="notion-input !text-xs" />
+                    <input value={editForm.remarks} onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })} className="notion-input !text-xs" placeholder="Remarks" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={handleEditSave} className="text-xs text-accent hover:underline">Save</button>
+                    <button onClick={() => setEditId(null)} className="text-xs text-text-muted hover:underline">Cancel</button>
+                  </div>
                 </div>
-                <span className="text-xs text-text-secondary">{crv.receiptDate}</span>
-              </div>
-              <div className="text-xs text-text-secondary space-y-1">
-                {crv.vendorOrUnitName && <p>From: <span className="font-medium text-text-primary">{crv.vendorOrUnitName}</span></p>}
-                {crv.procurement && <p>Procurement: <span className="font-mono bg-border px-1 py-0.5 rounded text-text-primary">{crv.procurement.method} — {crv.procurement.supplyOrderNumber || "N/A"}</span></p>}
-              </div>
-              {crv.crvItems?.length > 0 && (
+              ) : (
+                <>
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/50">
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={crv.voucherType} />
+                      <span className="text-sm font-mono font-bold text-text-primary">{crv.voucherNumber}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-text-secondary">{crv.receiptDate}</span>
+                      <button onClick={() => handleEdit(crv)} className="text-text-muted hover:text-accent transition-colors"><Pencil size={12} /></button>
+                      <button onClick={() => { if (confirm("Delete this CRV/RV?")) deleteCRV(crv.id); }} className="text-text-muted hover:text-danger transition-colors"><Trash2 size={12} /></button>
+                    </div>
+                  </div>
+                  <div className="text-xs text-text-secondary space-y-1">
+                    {crv.vendorOrUnitName && <p>From: <span className="font-medium text-text-primary">{crv.vendorOrUnitName}</span></p>}
+                    {crv.procurement && <p>Procurement: <span className="font-mono bg-border px-1 py-0.5 rounded text-text-primary">{crv.procurement.method} — {crv.procurement.supplyOrderNumber || "N/A"}</span></p>}
+                    {crv.remarks && <p className="italic">{crv.remarks}</p>}
+                  </div>
+                </>
+              )}
+              {crv.crvItems?.length > 0 && editId !== crv.id && (
                 <div className="mt-3 bg-bg-card border border-border rounded overflow-hidden">
                   <table className="w-full text-xs text-left">
                     <thead className="bg-bg-sidebar">
@@ -522,10 +786,12 @@ function CRVSection({ jobCardId, jobCard, onUpdate }) {
   );
 }
 
-function CIVSection({ jobCardId, jobCard, onUpdate }) {
-  const { civs, addCIV } = useCIVs(jobCardId);
+// ========== CIV Section ==========
+function CIVSection({ jobCardId, jobCard, civs, addCIV, updateCIV, deleteCIV, onUpdate }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ civNumber: "", issueDate: new Date().toISOString().split("T")[0], remarks: "" });
+  const [editId, setEditId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -534,6 +800,16 @@ function CIVSection({ jobCardId, jobCard, onUpdate }) {
     await onUpdate(jobCard.id, { status: "CLOSED", closedDate: new Date().toISOString().split("T")[0] });
     setForm({ civNumber: "", issueDate: new Date().toISOString().split("T")[0], remarks: "" });
     setShowForm(false);
+  };
+
+  const handleEdit = (civ) => {
+    setEditId(civ.id);
+    setEditForm({ civNumber: civ.civNumber, issueDate: civ.issueDate, remarks: civ.remarks || "" });
+  };
+
+  const handleEditSave = async () => {
+    await updateCIV(editId, editForm);
+    setEditId(null);
   };
 
   return (
@@ -551,12 +827,10 @@ function CIVSection({ jobCardId, jobCard, onUpdate }) {
       {showForm && (
         <form onSubmit={handleAdd} className="p-4 rounded-lg bg-bg-sidebar border border-border space-y-3 animate-fade-in mt-2">
           <div className="grid grid-cols-2 gap-3">
-            <input type="text" value={form.civNumber} onChange={(e) => setForm({ ...form, civNumber: e.target.value })}
-              placeholder="CIV Number *" className="notion-input" required />
+            <input type="text" value={form.civNumber} onChange={(e) => setForm({ ...form, civNumber: e.target.value })} placeholder="CIV Number *" className="notion-input" required />
             <input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} className="notion-input" />
           </div>
-          <input type="text" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-            placeholder="Remarks" className="notion-input" />
+          <input type="text" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} placeholder="Remarks" className="notion-input" />
           <div className="flex gap-2 pt-2">
             <button type="submit" className="notion-button bg-success text-white border-success hover:bg-success/90">Create CIV & Close Job Card</button>
             <button type="button" onClick={() => setShowForm(false)} className="notion-button">Cancel</button>
@@ -566,9 +840,32 @@ function CIVSection({ jobCardId, jobCard, onUpdate }) {
       {civs.length > 0 ? (
         <div className="space-y-2 pt-2">
           {civs.map((civ) => (
-            <div key={civ.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-bg-main">
-              <span className="text-sm font-mono font-bold text-success">{civ.civNumber}</span>
-              <span className="text-xs text-text-secondary">{civ.issueDate}</span>
+            <div key={civ.id} className="p-3 rounded-lg border border-border bg-bg-main">
+              {editId === civ.id ? (
+                <div className="space-y-2 animate-fade-in">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={editForm.civNumber} onChange={(e) => setEditForm({ ...editForm, civNumber: e.target.value })} className="notion-input !text-xs" />
+                    <input type="date" value={editForm.issueDate} onChange={(e) => setEditForm({ ...editForm, issueDate: e.target.value })} className="notion-input !text-xs" />
+                  </div>
+                  <input value={editForm.remarks} onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })} placeholder="Remarks" className="notion-input !text-xs" />
+                  <div className="flex gap-2">
+                    <button onClick={handleEditSave} className="text-xs text-accent hover:underline">Save</button>
+                    <button onClick={() => setEditId(null)} className="text-xs text-text-muted hover:underline">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-mono font-bold text-success">{civ.civNumber}</span>
+                    {civ.remarks && <p className="text-xs text-text-muted mt-0.5 italic">{civ.remarks}</p>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-text-secondary">{civ.issueDate}</span>
+                    <button onClick={() => handleEdit(civ)} className="text-text-muted hover:text-accent transition-colors"><Pencil size={12} /></button>
+                    <button onClick={() => { if (confirm("Delete this CIV?")) deleteCIV(civ.id); }} className="text-text-muted hover:text-danger transition-colors"><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -585,6 +882,14 @@ export default function JobCardDetail({ jobCard, onBack, onUpdate }) {
   const wo = jobCard.workOrder;
   const vep = wo?.vep;
   const isTest = wo?.workType === "KPL_LPH_TEST";
+
+  // ---- Lifted hooks: single source of truth for all sections ----
+  const { ions, addION, updateION, deleteION } = useIONs(jobCard.id);
+  const { spares, refetch: refetchSpares, updateSpare, deleteSpare } = useRequestedSpares(jobCard.id);
+  const { nacs, addNAC, updateNAC, deleteNAC } = useNACs(jobCard.id);
+  const { procurements, addProcurement, updateProcurement, deleteProcurement } = useProcurements(jobCard.id);
+  const { crvs, addCRV, updateCRV, deleteCRV } = useCRVs(jobCard.id);
+  const { civs, addCIV, updateCIV, deleteCIV } = useCIVs(jobCard.id);
 
   // Status step indicator
   const STEPS = isTest
@@ -645,11 +950,11 @@ export default function JobCardDetail({ jobCard, onBack, onUpdate }) {
         <TestingSection jobCard={jobCard} onUpdate={onUpdate} />
       ) : (
         <div className="space-y-6">
-          <IONSection jobCardId={jobCard.id} jobCard={jobCard} onUpdate={onUpdate} />
-          <SparesSection jobCardId={jobCard.id} jobCard={jobCard} onUpdate={onUpdate} />
-          <NACSection jobCardId={jobCard.id} jobCard={jobCard} onUpdate={onUpdate} />
-          <ProcurementSection jobCardId={jobCard.id} />
-          <CRVSection jobCardId={jobCard.id} jobCard={jobCard} onUpdate={onUpdate} />
+          <IONSection jobCard={jobCard} ions={ions} addION={addION} updateION={updateION} deleteION={deleteION} onUpdate={onUpdate} refetchSpares={refetchSpares} />
+          <SparesSection jobCard={jobCard} spares={spares} updateSpare={updateSpare} deleteSpare={deleteSpare} onUpdate={onUpdate} />
+          <NACSection jobCard={jobCard} spares={spares} nacs={nacs} addNAC={addNAC} updateNAC={updateNAC} deleteNAC={deleteNAC} onUpdate={onUpdate} />
+          <ProcurementSection procurements={procurements} addProcurement={addProcurement} updateProcurement={updateProcurement} deleteProcurement={deleteProcurement} />
+          <CRVSection jobCard={jobCard} crvs={crvs} addCRV={addCRV} updateCRV={updateCRV} deleteCRV={deleteCRV} procurements={procurements} spares={spares} onUpdate={onUpdate} />
 
           {/* Issue Spares action */}
           {jobCard.status === "SPARES_RECEIVED" && (
@@ -665,7 +970,7 @@ export default function JobCardDetail({ jobCard, onBack, onUpdate }) {
             </div>
           )}
 
-          <CIVSection jobCardId={jobCard.id} jobCard={jobCard} onUpdate={onUpdate} />
+          <CIVSection jobCardId={jobCard.id} jobCard={jobCard} civs={civs} addCIV={addCIV} updateCIV={updateCIV} deleteCIV={deleteCIV} onUpdate={onUpdate} />
         </div>
       )}
     </div>
