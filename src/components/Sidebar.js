@@ -21,6 +21,7 @@ export default function Sidebar() {
     { href: "/job-cards", label: "Job Cards", icon: FileText },
     { href: "/vep", label: "VEP Registry", icon: Truck },
     { href: "/vouchers", label: "Vouchers", icon: FileStack },
+    { href: "/crv-rv", label: "Global CRV / RV", icon: FileStack },
     { href: "/search", label: "Search", icon: Search },
   ];
 

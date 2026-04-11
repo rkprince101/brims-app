@@ -31,6 +31,7 @@ model WorkOrder {
   workType        String   // "KPL_LPH_TEST", "SPARE_REPLACEMENT"
   status          String   @default("PENDING") // "PENDING","ACCEPTED","ASSIGNED_TO_JOB_CARD","COMPLETED"
   remarks         String?
+  issues          String?  // Issues noted in VEP while generating WO
   createdAt       DateTime @default(now())
   jobCards        JobCard[]
 }
@@ -44,8 +45,10 @@ model JobCard {
   openedDate     String   // YYYY-MM-DD
   closedDate     String?
   testDate       String?
-  testType       String?  // "KPL" or "LPH"
+  recordedDate   String?
+  testType       String?  // "KPL", "LPH" or "BOTH"
   testResult     String?
+  testResultLph  String?
   status         String   @default("OPEN")
   remarks        String?
   createdAt      DateTime @default(now())
@@ -88,6 +91,8 @@ model RequestedSpare {
   scalingDoneRemarks String?
   availability      String   @default("UNKNOWN") // "UNKNOWN","AVAILABLE_IN_STORE","NOT_AVAILABLE"
   status            String   @default("PENDING") // "PENDING","SCALING","NAC_REQUESTED","PROCURING","RECEIVED","ISSUED"
+  sourceType        String?  // "CRV", "STORE_DIVISION", "UNIT_STORE"
+  unitStoreCategory String?  // "MAINTENANCE_DEMAND", "FIRM_DEMAND", "QUARTERLY_MAINTENANCE"
   createdAt         DateTime @default(now())
   crvItems          CrvItem[]
   nacs              Nac[]
@@ -114,13 +119,14 @@ model Nac {
 // 7. Procurement Details
 model Procurement {
   id                 String   @id @default(uuid())
-  jobCardId          String
-  jobCard            JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  jobCardId          String?
+  jobCard            JobCard? @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
   method             String   // "MoU","GeM","Imprest"
   supplyOrderNumber  String?
   vendorName         String?
   procurementDate    String?
   remarks            String?
+  amount             Float?
   createdAt          DateTime @default(now())
   crvs               Crv[]
 }
@@ -128,12 +134,14 @@ model Procurement {
 // 8. CRV (Certified Receipt Voucher) / RV (Receive Voucher)
 model Crv {
   id              String   @id @default(uuid())
-  jobCardId       String
-  jobCard         JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  jobCardId       String?
+  jobCard         JobCard? @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
   procurementId   String?
   procurement     Procurement? @relation(fields: [procurementId], references: [id], onDelete: SetNull)
   voucherType     String   @default("CRV") // "CRV" or "RV"
+  crvCategory     String?  // e.g., "MAINTENANCE_SUPPLY_ORDER"
   voucherNumber   String
+  brimsVoucherNumber String?
   vendorOrUnitName String?
   receiptDate     String
   remarks         String?
@@ -151,6 +159,9 @@ model CrvItem {
   spareName        String
   partNumber       String?
   quantityReceived Int      @default(1)
+  rate             Float?
+  gst              Float?
+  amount           Float?
   createdAt        DateTime @default(now())
 }
 

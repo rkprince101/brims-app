@@ -19,6 +19,7 @@ export default function WorkOrders() {
     dateReceived: new Date().toISOString().split("T")[0],
     workType: "SPARE_REPLACEMENT",
     remarks: "",
+    issues: "",
   });
 
   const filteredOrders = workOrders.filter(
@@ -37,6 +38,7 @@ export default function WorkOrders() {
       dateReceived: new Date().toISOString().split("T")[0],
       workType: "SPARE_REPLACEMENT",
       remarks: "",
+      issues: "",
     });
   };
 
@@ -104,6 +106,11 @@ export default function WorkOrders() {
                     {(wo.vep?.oem || wo.vep?.model) && (
                       <div className="text-text-muted text-[10px] uppercase tracking-wider mt-0.5">
                         {wo.vep?.oem} {wo.vep?.model}
+                      </div>
+                    )}
+                    {wo.issues && (
+                      <div className="text-warning text-xs mt-1 italic truncate max-w-[200px]" title={wo.issues}>
+                        Issues: {wo.issues}
                       </div>
                     )}
                   </td>
@@ -183,10 +190,22 @@ export default function WorkOrders() {
               </div>
             </div>
 
+            {formData.workType === "SPARE_REPLACEMENT" && (
+              <div>
+                <label className="notion-label">Issues / Defects <span className="text-xs font-normal text-text-muted">(If any)</span></label>
+                <textarea
+                  className="notion-input min-h-[60px]"
+                  placeholder="List down the issues in the VEP..."
+                  value={formData.issues}
+                  onChange={(e) => setFormData({ ...formData, issues: e.target.value })}
+                />
+              </div>
+            )}
+
             <div>
               <label className="notion-label">Remarks <span className="text-xs font-normal text-text-muted">(Optional)</span></label>
               <textarea
-                className="notion-input min-h-[80px]"
+                className="notion-input min-h-[60px]"
                 value={formData.remarks}
                 onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
               />

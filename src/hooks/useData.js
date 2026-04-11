@@ -358,6 +358,69 @@ export function useCRVs(jobCardId) {
   return { crvs, loading, refetch: fetchCrvs, addCRV, updateCRV, deleteCRV };
 }
 
+// ---- Global CRVs & Procurements ----
+export function useGlobalCRVs() {
+  const [crvs, setCrvs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCrvs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchApi(`/api/crvs`);
+      setCrvs(data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchCrvs(); }, [fetchCrvs]);
+  
+  const addCRV = async (crv, items) => {
+    // Allows sending empty jobCardId for standalone CRVs
+    const data = await fetchApi("/api/crvs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...crv, items }),
+    });
+    await fetchCrvs();
+    return data;
+  };
+
+  const updateCRV = async (id, updates) => {
+    const data = await fetchApi(`/api/crvs/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    setCrvs((prev) => prev.map((c) => (c.id === id ? data : c)));
+    return data;
+  };
+
+  const deleteCRV = async (id) => {
+    await fetchApi(`/api/crvs/${id}`, { method: "DELETE" });
+    setCrvs((prev) => prev.filter((c) => c.id !== id));
+  };
+  
+  return { crvs, loading, refetch: fetchCrvs, addCRV, updateCRV, deleteCRV };
+}
+
+export function useGlobalProcurements() {
+  const [procurements, setProcurements] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProcurements = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchApi(`/api/procurements`);
+      setProcurements(data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchProcurements(); }, [fetchProcurements]);
+
+  return { procurements, loading, refetch: fetchProcurements };
+}
+
 // ---- CIVs ----
 export function useCIVs(jobCardId) {
   const [civs, setCivs] = useState([]);
