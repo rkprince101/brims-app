@@ -1105,7 +1105,7 @@ export default function JobCardDetail({ jobCard, onBack, onUpdate }) {
 
   // ---- Lifted hooks: single source of truth for all sections ----
   const { ions, addION, updateION, deleteION } = useIONs(jobCard.id);
-  const { spares, refetch: refetchSpares, updateSpare, deleteSpare } = useRequestedSpares(jobCard.id);
+  const { spares, refetch: refetchSpares, addSpare, updateSpare, deleteSpare } = useRequestedSpares(jobCard.id);
   const { nacs, addNAC, updateNAC, deleteNAC } = useNACs(jobCard.id);
   const { procurements, addProcurement, updateProcurement, deleteProcurement } = useProcurements(jobCard.id);
   const { crvs, addCRV, updateCRV, deleteCRV } = useCRVs(jobCard.id);

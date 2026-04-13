@@ -2,18 +2,26 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const workOrders = await prisma.workOrder.findMany({
-    include: { vep: true },
-    orderBy: { createdAt: "desc" },
-  });
-  return NextResponse.json(workOrders);
+  try {
+    const workOrders = await prisma.workOrder.findMany({
+      include: { vep: true },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(workOrders);
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
 }
 
 export async function POST(req) {
-  const body = await req.json();
-  const wo = await prisma.workOrder.create({
-    data: body,
-    include: { vep: true },
-  });
-  return NextResponse.json(wo);
+  try {
+    const body = await req.json();
+    const wo = await prisma.workOrder.create({
+      data: body,
+      include: { vep: true },
+    });
+    return NextResponse.json(wo);
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
 }

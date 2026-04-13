@@ -5,7 +5,18 @@ import { useState, useEffect, useCallback } from "react";
 // Helper function to handle standard JSON fetch responses
 async function fetchApi(url, options = {}) {
   const res = await fetch(url, options);
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    let msg = `API Error ${res.status}`;
+    try {
+      const body = await res.json();
+      msg = body.error || JSON.stringify(body);
+    } catch {
+      try {
+        msg = await res.text();
+      } catch { /* ignore */ }
+    }
+    throw new Error(msg);
+  }
   return res.json();
 }
 

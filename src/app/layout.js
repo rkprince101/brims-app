@@ -23,10 +23,11 @@ export default function RootLayout({ children }) {
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex bg-[var(--color-bg-main)]">
+      <body className="min-h-full flex bg-[var(--color-bg-main)]" suppressHydrationWarning>
         <Sidebar />
-        <main className="flex-1 max-w-[100vw] h-screen h-[100dvh] overflow-y-auto bg-[var(--color-bg-main)] pb-10">
+        <main className="flex-1 max-w-[100vw] min-h-screen overflow-y-auto bg-[var(--color-bg-main)] pb-10">
           {children}
         </main>
       </body>

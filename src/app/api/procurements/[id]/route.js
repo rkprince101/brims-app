@@ -2,17 +2,25 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function PUT(req, { params }) {
-  const { id } = await params;
-  const body = await req.json();
-  const p = await prisma.procurement.update({
-    where: { id },
-    data: body,
-  });
-  return NextResponse.json(p);
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const p = await prisma.procurement.update({
+      where: { id },
+      data: body,
+    });
+    return NextResponse.json(p);
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
 }
 
 export async function DELETE(req, { params }) {
-  const { id } = await params;
-  await prisma.procurement.delete({ where: { id } });
-  return NextResponse.json({ success: true });
+  try {
+    const { id } = await params;
+    await prisma.procurement.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
 }

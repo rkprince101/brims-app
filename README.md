@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# BRIMS - Border Road Inventory Management System
 
-## Getting Started
+BRIMS is a comprehensive inventory and maintenance tracking system designed for managing Vehicles, Equipment, and Plant (VEP) in demanding environments. It tracks the complete lifecycle from work order receipt to job card completion, including spare part procurement and voucher management.
 
-First, run the development server:
+## 🚀 Quick Start (Setup on a New Machine)
 
+If you are running this project for the first time or moving to a new computer, follow these steps in order:
+
+### 1. Install Dependencies
+Download the required libraries for the application.
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Generate Prisma Client
+**CRITICAL STEP:** This builds the bridge between the application code and the database. Without this, the app will return "500 Internal Server Error" when trying to fetch data.
+```bash
+npx prisma generate
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### 3. Initialize Database
+Ensure the local SQLite database is created and synchronized with the latest schema.
+```bash
+npx prisma db push
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Run Development Server
+Start the application in development mode.
+```bash
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) in your browser to see the result.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠 Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
+- **Database**: [SQLite](https://www.sqlite.org/) via [Better-SQLite3](https://github.com/WiseLibs/better-sqlite3)
+- **ORM**: [Prisma](https://www.prisma.io/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Styling**: Vanilla CSS with modern Design Tokens
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📋 Key Modules
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Dashboard**: Real-time overview of active work orders and job card pipeline.
+- **VEP Registry**: Centralized management of Vehicles, Equipment, and Plant units.
+- **Work Orders**: Track incoming maintenance requests from different units.
+- **Job Cards**: Detailed maintenance tracking including:
+  - **IONs**: Internal Office Notes for spare requests.
+  - **Spare Scaling**: Granular tracking of spare availability and sources.
+  - **NACs**: Non-Availability Certificates for procurement.
+  - **Procurement**: Tracking supply orders and vendor interactions.
+  - **CRV/RV**: Receipt vouchers for incoming spares.
+  - **CIVs**: Issue vouchers for parts installed on equipment.
+- **Vouchers**: A global ledger for browsing all document types across the workspace.
+
+---
+
+## 💡 Troubleshooting
+
+### "API Error 500" or HTML code appearing in console
+This usually happens if the Prisma Client is out of sync or missing. 
+**Solution:**
+1. Stop the server (`Ctrl+C`).
+2. Run `npx prisma generate`.
+3. Restart the server with `npm run dev`.
+
+### Database Schema Changes
+If you modify `prisma/schema.prisma`, you must run:
+```bash
+npx prisma db push
+npx prisma generate
+```
