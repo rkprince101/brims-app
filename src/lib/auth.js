@@ -14,7 +14,7 @@ const TOKEN_EXPIRY = "7d"; // tokens last 7 days
 
 // ─── Password Hashing ──────────────────────────────────────────────────────
 export async function hashPassword(plainText) {
-  return bcrypt.hash(plainText, 12);
+  return bcrypt.hash(plainText, 10);
 }
 
 export async function verifyPassword(plainText, hash) {
