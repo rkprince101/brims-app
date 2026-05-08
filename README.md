@@ -40,7 +40,11 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the r
 - **Database**: [SQLite](https://www.sqlite.org/) via [Better-SQLite3](https://github.com/WiseLibs/better-sqlite3)
 - **ORM**: [Prisma](https://www.prisma.io/)
 - **Icons**: [Lucide React](https://lucide.dev/)
+<<<<<<< HEAD
 - **Styling**: TailwindCSS 4 with custom Design Tokens (Notion-inspired theme)
+=======
+- **Styling**: Vanilla CSS with modern Design Tokens
+>>>>>>> 5bc236a105deb14d8bfa0171ba07379992bda215
 
 ---
 
