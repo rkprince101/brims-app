@@ -1,13 +1,17 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/apiAuth";
 
 const MASTER_PASSWORD = "rishikesh.prince";
 
 export async function GET(req, { params }) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { id } = await params;
     const jc = await prisma.jobCard.findUnique({
-      where: { id },
+      where: { id, userId: user.userId },
       include: { workOrder: { include: { vep: true } }, relatedJobCard: true },
     });
     if (!jc) {
@@ -21,11 +25,14 @@ export async function GET(req, { params }) {
 
 export async function PUT(req, { params }) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { id } = await params;
     const body = await req.json();
     const { _password, relatedJobCard, ...updates } = body;
 
-    const existing = await prisma.jobCard.findUnique({ where: { id } });
+    const existing = await prisma.jobCard.findUnique({ where: { id, userId: user.userId } });
     if (!existing) {
       return NextResponse.json({ error: "Job card not found" }, { status: 404 });
     }
@@ -37,7 +44,7 @@ export async function PUT(req, { params }) {
     }
 
     const jc = await prisma.jobCard.update({
-      where: { id },
+      where: { id, userId: user.userId },
       data: updates,
       include: { workOrder: { include: { vep: true } }, relatedJobCard: true },
     });

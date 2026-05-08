@@ -1,8 +1,12 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/apiAuth";
 
 export async function GET(req) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q") || "";
     
@@ -12,12 +16,13 @@ export async function GET(req) {
 
     const veps = await prisma.vep.findMany({
       where: {
+        userId: user.userId,
         OR: [
-          { registrationNumber: { contains: query } },
-          { oem: { contains: query } },
-          { model: { contains: query } },
-          { engineNumber: { contains: query } },
-          { chassisNumber: { contains: query } },
+          { registrationNumber: { contains: query, mode: "insensitive" } },
+          { oem: { contains: query, mode: "insensitive" } },
+          { model: { contains: query, mode: "insensitive" } },
+          { engineNumber: { contains: query, mode: "insensitive" } },
+          { chassisNumber: { contains: query, mode: "insensitive" } },
         ],
       },
       take: 20,
@@ -25,7 +30,8 @@ export async function GET(req) {
 
     const workOrders = await prisma.workOrder.findMany({
       where: {
-        workOrderNumber: { contains: query },
+        userId: user.userId,
+        workOrderNumber: { contains: query, mode: "insensitive" },
       },
       include: { vep: true },
       take: 20,
@@ -33,7 +39,8 @@ export async function GET(req) {
 
     const jobCards = await prisma.jobCard.findMany({
       where: {
-        jobCardNumber: { contains: query },
+        userId: user.userId,
+        jobCardNumber: { contains: query, mode: "insensitive" },
       },
       include: { workOrder: { include: { vep: true } } },
       take: 20,

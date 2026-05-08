@@ -12,13 +12,27 @@ model User {
   username  String   @unique
   password  String   // bcrypt hash
   createdAt DateTime @default(now())
+  // Owned records
+  veps         Vep[]
+  units        Unit[]
+  workOrders   WorkOrder[]
+  jobCards     JobCard[]
+  ions         Ion[]
+  spares       RequestedSpare[]
+  nacs         Nac[]
+  procurements Procurement[]
+  crvs         Crv[]
+  crvItems     CrvItem[]
+  civs         Civ[]
 }
 
 // 1. VEP (Vehicle / Equipment / Plant)
 model Vep {
   id                 String   @id @default(uuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type               String   // "Vehicle", "Equipment", "Plant"
-  registrationNumber String   @unique // BA-xxxx for vehicles, EM-xxxx for equipment/plant
+  registrationNumber String   // BA-xxxx for vehicles, EM-xxxx for equipment/plant
   category           String?  // e.g. "Small Utility Vehicle", "Heavy Earth Mover"
   oem                String?  // e.g. "Mahindra & Mahindra Ltd"
   model              String?  // e.g. "Scorpio (4x4)"
@@ -30,22 +44,30 @@ model Vep {
   status             String   @default("Active") // "Active", "Under Maintenance"
   createdAt          DateTime @default(now())
   workOrders         WorkOrder[]
+
+  @@unique([userId, registrationNumber])
 }
 
 // 0. Units (Workshop Units)
 model Unit {
   id        String   @id @default(uuid())
-  name      String   @unique // e.g. "102 Workshop", "BEC"
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String   // e.g. "102 Workshop", "BEC"
   location  String?  // Unit location
   remarks   String?
   createdAt DateTime @default(now())
   veps      Vep[]
+
+  @@unique([userId, name])
 }
 
 // 2. Work Orders
 model WorkOrder {
   id              String   @id @default(uuid())
-  workOrderNumber String   @unique
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workOrderNumber String   // WO number
   vepId           String
   vep             Vep      @relation(fields: [vepId], references: [id], onDelete: Cascade)
   dateReceived    String   // stored as YYYY-MM-DD
@@ -56,12 +78,16 @@ model WorkOrder {
   closingRemark   String?  // Remark when closed by RCC without opening JC
   createdAt       DateTime @default(now())
   jobCards        JobCard[]
+
+  @@unique([userId, workOrderNumber])
 }
 
 // 3. Job Cards
 model JobCard {
   id             String   @id @default(uuid())
-  jobCardNumber  String   @unique
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobCardNumber  String   // JC number
   workOrderId    String
   workOrder      WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   openedDate     String   // YYYY-MM-DD
@@ -84,11 +110,15 @@ model JobCard {
   procurements   Procurement[]
   crvs           Crv[]
   civs           Civ[]
+
+  @@unique([userId, jobCardNumber])
 }
 
 // 4. ION (Inter Office Note)
 model Ion {
   id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobCardId       String
   jobCard         JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
   referenceNumber String
@@ -102,6 +132,8 @@ model Ion {
 // 5. Requested Spares
 model RequestedSpare {
   id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobCardId         String
   jobCard           JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
   ionId             String?
@@ -127,6 +159,8 @@ model RequestedSpare {
 // 6. NAC (Non-Availability Certificate) — per-spare
 model Nac {
   id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobCardId       String
   jobCard         JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
   requestedSpareId String?
@@ -145,6 +179,8 @@ model Nac {
 // 7. Procurement Details
 model Procurement {
   id                 String   @id @default(uuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobCardId          String?
   jobCard            JobCard? @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
   method             String   // "MoU","GeM","Imprest"
@@ -160,6 +196,8 @@ model Procurement {
 // 8. CRV (Certified Receipt Voucher) / RV (Receive Voucher)
 model Crv {
   id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobCardId       String?
   jobCard         JobCard? @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
   procurementId   String?
@@ -178,6 +216,8 @@ model Crv {
 // 9. CRV Line Items
 model CrvItem {
   id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   crvId            String
   crv              Crv      @relation(fields: [crvId], references: [id], onDelete: Cascade)
   requestedSpareId String?
@@ -194,6 +234,8 @@ model CrvItem {
 // 10. CIV (Certified Issue Voucher)
 model Civ {
   id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobCardId String
   jobCard   JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
   civNumber String
