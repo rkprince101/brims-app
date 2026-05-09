@@ -29,13 +29,27 @@ export async function POST(req) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const nac = await prisma.nac.create({
-      data: { ...body, userId: user.userId },
-      include: {
-        requestedSpare: { select: { spareName: true, partNumber: true } },
-      },
-    });
-    return NextResponse.json(nac);
+
+    if (body.requestedSpareIds && Array.isArray(body.requestedSpareIds)) {
+      // Bulk creation
+      const { requestedSpareIds, ...commonData } = body;
+      const createdNacs = await prisma.$transaction(
+        requestedSpareIds.map(id => prisma.nac.create({
+          data: { ...commonData, requestedSpareId: id, userId: user.userId },
+          include: { requestedSpare: { select: { spareName: true, partNumber: true } } },
+        }))
+      );
+      return NextResponse.json(createdNacs);
+    } else {
+      // Single creation (fallback)
+      const nac = await prisma.nac.create({
+        data: { ...body, userId: user.userId },
+        include: {
+          requestedSpare: { select: { spareName: true, partNumber: true } },
+        },
+      });
+      return NextResponse.json(nac);
+    }
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

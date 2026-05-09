@@ -16,6 +16,7 @@ export default function JobCards() {
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
     jobCardNumber: "",
+    physicalReference: "",
     workOrderId: "",
     openedDate: new Date().toISOString().split("T")[0],
     remarks: "",
@@ -40,6 +41,7 @@ export default function JobCards() {
     setIsModalOpen(false);
     setFormData({
       jobCardNumber: "",
+      physicalReference: "",
       workOrderId: "",
       openedDate: new Date().toISOString().split("T")[0],
       remarks: "",
@@ -149,17 +151,31 @@ export default function JobCards() {
       {isModalOpen && (
         <Modal title="Open New Job Card" onClose={() => setIsModalOpen(false)}>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="notion-label">Job Card Number <span className="text-danger">*</span></label>
-              <input
-                type="text"
-                required
-                className="notion-input"
-                value={formData.jobCardNumber}
-                onChange={(e) =>
-                  setFormData({ ...formData, jobCardNumber: e.target.value })
-                }
-              />
+            <div className="grid grid-cols-2 gap-4 border-b border-border pb-4">
+              <div>
+                <label className="notion-label">Job Card Number <span className="text-danger">*</span></label>
+                <input
+                  type="text"
+                  required
+                  className="notion-input"
+                  value={formData.jobCardNumber}
+                  onChange={(e) =>
+                    setFormData({ ...formData, jobCardNumber: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="notion-label">Physical JC Ref <span className="text-xs font-normal text-text-muted">(Optional)</span></label>
+                <input
+                  type="text"
+                  className="notion-input"
+                  placeholder="Store JC reference"
+                  value={formData.physicalReference}
+                  onChange={(e) =>
+                    setFormData({ ...formData, physicalReference: e.target.value })
+                  }
+                />
+              </div>
             </div>
 
             <div>

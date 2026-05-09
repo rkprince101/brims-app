@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Search, Truck, Upload, Download, AlertCircle, CheckCircle, AlertTriangle } from "lucide-react";
+import { Plus, X, Search, Truck, Upload, Download, AlertCircle, CheckCircle, AlertTriangle, ArrowRightLeft } from "lucide-react";
 import { useVEPs, useUnits } from "@/hooks/useData";
 import StatusBadge from "@/components/ui/StatusBadge";
 import EmptyState from "@/components/ui/EmptyState";
@@ -30,6 +30,8 @@ export default function VEPManager() {
   const [importErrors, setImportErrors] = useState([]);
   const [importResult, setImportResult] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [moveModal, setMoveModal] = useState(null);
+  const [moveDestUnit, setMoveDestUnit] = useState("");
 
   const filteredVeps = veps.filter(
     (v) =>
@@ -256,9 +258,22 @@ export default function VEPManager() {
                   </td>
                   <td className="py-3 px-4">
                     <StatusBadge status={vep.status} />
+                    {vep.isMovedOut && (
+                      <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-[10px] rounded-full font-semibold border border-red-200">
+                        Moved → {vep.movedToUnit || "Unknown"}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex justify-end gap-2">
+                      {!vep.isMovedOut && (
+                        <button
+                          onClick={() => { setMoveModal(vep); setMoveDestUnit(""); }}
+                          className="text-orange-600 hover:underline text-xs flex items-center gap-0.5"
+                        >
+                          <ArrowRightLeft size={10} /> Move
+                        </button>
+                      )}
                       <button
                         onClick={() => { setEditVep(vep); setFormData({ type: vep.type, registrationNumber: vep.registrationNumber, category: vep.category || "", oem: vep.oem || "", model: vep.model || "", engineNumber: vep.engineNumber || "", chassisNumber: vep.chassisNumber || "", unitName: vep.unitName || "", status: vep.status }); setIsModalOpen(true); }}
                         className="text-accent hover:underline text-xs"
@@ -533,6 +548,41 @@ export default function VEPManager() {
                   {importing ? "Importing..." : `Import ${importPreview.length} VEP(s)`}
                 </button>
               )}
+            </div>
+          </div>
+        </Modal>
+      )}
+      {moveModal && (
+        <Modal title={`Move VEP: ${moveModal.registrationNumber}`} onClose={() => setMoveModal(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-text-secondary">
+              This VEP will no longer appear in Work Order creation or other lists. It will remain in the VEP Registry with a red &ldquo;Moved&rdquo; tag.
+            </p>
+            <div>
+              <label className="notion-label">Destination Unit Name <span className="text-danger">*</span></label>
+              <input
+                type="text"
+                required
+                placeholder="e.g., 102 Workshop, BEC"
+                className="notion-input"
+                value={moveDestUnit}
+                onChange={(e) => setMoveDestUnit(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2 pt-2 border-t border-border">
+              <button
+                onClick={async () => {
+                  if (!moveDestUnit.trim()) return;
+                  await updateVEP(moveModal.id, { isMovedOut: true, movedToUnit: moveDestUnit.trim() });
+                  setMoveModal(null);
+                }}
+                disabled={!moveDestUnit.trim()}
+                className="notion-button bg-orange-600 text-white border-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowRightLeft size={14} /> Confirm Move
+              </button>
+              <button onClick={() => setMoveModal(null)} className="notion-button">Cancel</button>
             </div>
           </div>
         </Modal>

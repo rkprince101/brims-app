@@ -13,17 +13,18 @@ model User {
   password  String   // bcrypt hash
   createdAt DateTime @default(now())
   // Owned records
-  veps         Vep[]
-  units        Unit[]
-  workOrders   WorkOrder[]
-  jobCards     JobCard[]
-  ions         Ion[]
-  spares       RequestedSpare[]
-  nacs         Nac[]
-  procurements Procurement[]
-  crvs         Crv[]
-  crvItems     CrvItem[]
-  civs         Civ[]
+  veps             Vep[]
+  units            Unit[]
+  workOrders       WorkOrder[]
+  jobCards         JobCard[]
+  ions             Ion[]
+  spares           RequestedSpare[]
+  nacs             Nac[]
+  procurements     Procurement[]
+  procurementItems ProcurementItem[]
+  crvs             Crv[]
+  crvItems         CrvItem[]
+  civs             Civ[]
 }
 
 // 1. VEP (Vehicle / Equipment / Plant)
@@ -42,6 +43,8 @@ model Vep {
   unitId             String?  // Linked Unit record
   unit               Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
   status             String   @default("Active") // "Active", "Under Maintenance"
+  isMovedOut         Boolean  @default(false)
+  movedToUnit        String?  // Name of the unit it was moved to
   createdAt          DateTime @default(now())
   workOrders         WorkOrder[]
 
@@ -87,9 +90,10 @@ model JobCard {
   id             String   @id @default(uuid())
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  jobCardNumber  String   // JC number
-  workOrderId    String
-  workOrder      WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  jobCardNumber     String   // JC number
+  physicalReference String?  // Reference number of the physical Job Card opened by Store
+  workOrderId       String
+  workOrder         WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   openedDate     String   // YYYY-MM-DD
   closedDate     String?
   testDate       String?
@@ -142,6 +146,7 @@ model RequestedSpare {
   partNumber        String?
   quantityRequested Int      @default(1)
   quantityReceived  Int      @default(0)
+  remarks           String?
   scalingStatus     String   @default("NOT_STARTED") // "NOT_STARTED","IN_PROGRESS","DONE"
   scalingStartDate  String?
   scalingStartRemarks String?
@@ -154,6 +159,7 @@ model RequestedSpare {
   createdAt         DateTime @default(now())
   crvItems          CrvItem[]
   nacs              Nac[]
+  procurementItems  ProcurementItem[]
 }
 
 // 6. NAC (Non-Availability Certificate) — per-spare
@@ -191,6 +197,25 @@ model Procurement {
   amount             Float?
   createdAt          DateTime @default(now())
   crvs               Crv[]
+  items              ProcurementItem[]
+}
+
+// 7b. Procurement Line Items (per-spare pricing)
+model ProcurementItem {
+  id               String       @id @default(uuid())
+  userId           String
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  procurementId    String
+  procurement      Procurement  @relation(fields: [procurementId], references: [id], onDelete: Cascade)
+  requestedSpareId String?
+  requestedSpare   RequestedSpare? @relation(fields: [requestedSpareId], references: [id], onDelete: SetNull)
+  spareName        String
+  partNumber       String?
+  quantity         Int          @default(1)
+  rate             Float        @default(0)
+  gst              Float        @default(0)
+  amount           Float        @default(0)
+  createdAt        DateTime     @default(now())
 }
 
 // 8. CRV (Certified Receipt Voucher) / RV (Receive Voucher)

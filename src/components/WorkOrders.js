@@ -204,7 +204,7 @@ export default function WorkOrders() {
                 onChange={(e) => setFormData({ ...formData, vepId: e.target.value })}
               >
                 <option value="" disabled>Select a VEP...</option>
-                {veps.map((v) => (
+                {veps.filter((v) => !v.isMovedOut).map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.registrationNumber} - {v.oem} {v.model}
                   </option>

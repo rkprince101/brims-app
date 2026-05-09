@@ -12,6 +12,9 @@ export async function GET(req) {
     const where = jobCardId ? { jobCardId, userId: user.userId } : { userId: user.userId };
     const procurements = await prisma.procurement.findMany({
       where,
+      include: {
+        items: true,
+      },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(procurements);
@@ -26,7 +29,19 @@ export async function POST(req) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const procurement = await prisma.procurement.create({ data: { ...body, userId: user.userId } });
+    const { items, ...procData } = body;
+    
+    const procurement = await prisma.procurement.create({
+      data: {
+        ...procData,
+        userId: user.userId,
+        items: {
+          create: (items || []).map((item) => ({ ...item, userId: user.userId })),
+        }
+      },
+      include: { items: true },
+    });
+    
     return NextResponse.json(procurement);
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
